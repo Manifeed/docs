@@ -11,7 +11,6 @@ Il assure :
 - la synchronisation du catalogue RSS depuis un depot Git ;
 - la creation des jobs RSS et embeddings ;
 - la finalisation des jobs dans les tables metier ;
-- les migrations Alembic au demarrage ;
 - la maintenance de la projection d'embeddings pour le visualizer.
 
 Il ne scrape pas les flux RSS lui-meme et ne calcule pas les embeddings.
@@ -23,10 +22,9 @@ Au demarrage normal de `main.py` :
 1. les logs applicatifs sont configures ;
 2. les CORS sont derives de `CORS_ORIGINS` ;
 3. les routers `health`, `jobs`, `rss`, `sources` et `workers` sont montes ;
-4. les migrations Alembic sont appliquees ;
-5. une boucle asynchrone de synchronisation des projections est lancee.
+4. une boucle asynchrone de synchronisation des projections est lancee.
 
-La variable `MANIFEED_DISABLE_STARTUP_TASKS=1` desactive les migrations et la boucle de projection.
+La variable `MANIFEED_DISABLE_STARTUP_TASKS=1` desactive la boucle de projection.
 Elle est utile pour les tests ou certains scripts ponctuels.
 
 ## Flux metier
@@ -186,7 +184,7 @@ Le backend monte deux prefixes :
 | `DB_POOL_TIMEOUT_SECONDS` | `30` | timeout du pool |
 | `DB_POOL_RECYCLE_SECONDS` | `1800` | recycle des connexions |
 | `CORS_ORIGINS` | `*` | liste CSV ou `*` |
-| `MANIFEED_DISABLE_STARTUP_TASKS` | vide | desactive migrations et projection loop |
+| `MANIFEED_DISABLE_STARTUP_TASKS` | vide | desactive la projection loop au demarrage |
 
 ### Catalogue RSS
 
@@ -243,6 +241,8 @@ make test-backend
 Pour lancer le backend seul hors Compose :
 
 ```bash
+cd ../infra
+make db-migrate
 cd ../backend
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
@@ -250,6 +250,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ## Notes d'exploitation
 
 - Le backend est aujourd'hui la seule porte d'entree des workers ; ils n'accedent jamais directement a PostgreSQL.
+- En environnement Docker multi-repo, l'infra applique les migrations Alembic avant le demarrage du backend.
 - Les finalizers transforment les resultats techniques en donnees metier. Supprimer un job ne retire donc pas
   automatiquement les sources ou embeddings deja fusionnes.
 - La projection 2D est maintenue en fond et peut etre reconstruite integralement quand l'etat n'est plus courant.

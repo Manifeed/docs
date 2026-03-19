@@ -1,6 +1,6 @@
 # Schema PostgreSQL
 
-Le schema de reference est defini par les migrations Alembic de `backend/alembic/versions/`.
+Le schema de reference est defini par les migrations Alembic de `infra/postgres_migration/alembic/versions/`.
 La baseline actuelle est `v1_initialization`, completee par `v1_1` a `v1_5`.
 
 ## Conventions

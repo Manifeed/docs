@@ -29,14 +29,15 @@ Variables standard :
 
 ## Migrations
 
-Les migrations sont gerees par Alembic dans `backend/alembic/`.
+Les migrations sont gerees par Alembic dans `infra/postgres_migration/alembic/`.
+Leur orchestration appartient a `infra/`, pas au cycle de vie du conteneur backend.
 
 Sequence normale :
 
-1. le backend demarre ;
-2. `run_db_migrations()` est appele ;
+1. `infra` demarre PostgreSQL ;
+2. le service one-shot `db_migrations` execute `alembic upgrade head` ;
 3. les revisions Alembic sont appliquees ;
-4. l'API devient disponible.
+4. le backend peut ensuite devenir disponible.
 
 Commandes utiles :
 
@@ -51,7 +52,7 @@ make db-reset
 
 - drop le schema `public`
 - le recree
-- relance les migrations
+- relance les migrations via le service `db_migrations`
 
 Cette commande est destructive.
 
@@ -68,7 +69,7 @@ Important :
 
 - ces fonctions de retention existent en base ;
 - leur execution periodique n'est pas planifiee par l'application ;
-- en production, il faut les scheduler explicitement (`pg_cron`, cron externe, job Ops).
+- en production, il faut les scheduler explicitement via l'infra (`pg_cron`, cron externe, job Ops).
 
 ## Exploitation
 

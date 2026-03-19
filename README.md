@@ -4,10 +4,10 @@ Depot de documentation du split multi-repo Manifeed.
 
 ## Carte des repos
 
-- `../backend` : API FastAPI, migrations et tests Python
+- `../backend` : API FastAPI et tests Python
 - `../frontend` : console d'administration Next.js
 - `../workers` : workspace Rust et installeurs Linux
-- `../infra` : orchestration locale Docker et commandes transverses
+- `../infra` : orchestration locale Docker, migrations et commandes transverses
 - `../api` : contrat OpenAPI publie
 
 ## Contenu
