@@ -10,8 +10,7 @@ Il assure :
 - l'API d'enrolement, d'authentification et de gateway pour les workers ;
 - la synchronisation du catalogue RSS depuis un depot Git ;
 - la creation des jobs RSS et embeddings ;
-- la finalisation des jobs dans les tables metier ;
-- la maintenance de la projection d'embeddings pour le visualizer.
+- la finalisation des jobs dans les tables metier.
 
 Il ne scrape pas les flux RSS lui-meme et ne calcule pas les embeddings.
 
@@ -21,11 +20,7 @@ Au demarrage normal de `main.py` :
 
 1. les logs applicatifs sont configures ;
 2. les CORS sont derives de `CORS_ORIGINS` ;
-3. les routers `health`, `jobs`, `rss`, `sources` et `workers` sont montes ;
-4. une boucle asynchrone de synchronisation des projections est lancee.
-
-La variable `MANIFEED_DISABLE_STARTUP_TASKS=1` desactive la boucle de projection.
-Elle est utile pour les tests ou certains scripts ponctuels.
+3. les routers `health`, `jobs`, `rss`, `sources` et `workers` sont montes.
 
 ## Flux metier
 
@@ -57,7 +52,7 @@ Les workers RSS :
 1. s'authentifient contre l'API workers ;
 2. claim des tasks ;
 3. postent `complete` ou `fail` ;
-4. poussent leur etat courant via `POST /internal/workers/rss/state`.
+4. poussent leur etat courant via `POST /workers/rss/state`.
 
 Lorsque toutes les tasks sont traitees, le backend finalise le job :
 
@@ -87,8 +82,7 @@ La finalisation :
 
 - garde le dernier resultat par `(source_id, embedding_model_id)` ;
 - upsert `rss_source_embeddings` ;
-- met a jour les dimensions du modele dans `embedding_models` ;
-- tente un rafraichissement incrementiel de la projection si l'etat courant est deja valide.
+- met a jour les dimensions du modele dans `embedding_models`.
 
 ## Routes publiques
 
@@ -121,8 +115,6 @@ les executions concurrentes de meme nature.
 | `GET` | `/sources/companies/{company_id}` | sources pour une company | pagination identique |
 | `GET` | `/sources/{source_id}` | detail d'une source | renvoie company names et sections |
 | `POST` | `/sources/embeddings/enqueue` | cree un job d'embedding | query `reembed_model_mismatches=true` |
-| `GET` | `/sources/visualizer` | projection 2D | filtres `date_from`, `date_to` |
-| `GET` | `/sources/visualizer/{source_id}/neighbors` | voisins semantiques | `neighbor_limit` entre `1` et `24` |
 
 ### Jobs
 
@@ -138,39 +130,38 @@ les executions concurrentes de meme nature.
 
 ## Routes workers
 
-Le backend monte deux prefixes :
+Le backend expose un prefixe unique :
 
-- `/internal/workers/*` : prefixe officiel expose dans la documentation OpenAPI ;
-- `/workers/*` : alias legacy, masque du schema, conserve pour les binaires Rust actuels.
+- `/workers/*` : prefixe unique expose dans la documentation OpenAPI et consomme par les workers.
 
 ### Authentification et monitoring
 
 | Methode | Route officielle | Description |
 | --- | --- | --- |
-| `POST` | `/internal/workers/enroll` | enrolement initial par cle publique Ed25519 |
-| `POST` | `/internal/workers/auth/challenge` | emission d'un challenge court |
-| `POST` | `/internal/workers/auth/verify` | verification de signature et emission d'un JWT worker |
-| `GET` | `/internal/workers/me` | profil du worker authentifie |
-| `GET` | `/internal/workers/overview` | etat des workers par type |
-| `GET` | `/internal/workers/queues/overview` | etat des queues techniques |
-| `POST` | `/internal/workers/queues/{queue_name}/purge` | purge brute d'une queue |
+| `POST` | `/workers/enroll` | enrolement initial par cle publique Ed25519 |
+| `POST` | `/workers/auth/challenge` | emission d'un challenge court |
+| `POST` | `/workers/auth/verify` | verification de signature et emission d'un JWT worker |
+| `GET` | `/workers/me` | profil du worker authentifie |
+| `GET` | `/workers/overview` | etat des workers par type |
+| `GET` | `/workers/queues/overview` | etat des queues techniques |
+| `POST` | `/workers/queues/{queue_name}/purge` | purge brute d'une queue |
 
 ### Pipeline RSS
 
 | Methode | Route officielle | Description |
 | --- | --- | --- |
-| `POST` | `/internal/workers/rss/claim` | claim de tasks RSS |
-| `POST` | `/internal/workers/rss/complete` | completion avec `result_events` |
-| `POST` | `/internal/workers/rss/fail` | echec technique de task |
-| `POST` | `/internal/workers/rss/state` | etat runtime remonte par le worker RSS |
+| `POST` | `/workers/rss/claim` | claim de tasks RSS |
+| `POST` | `/workers/rss/complete` | completion avec `result_events` |
+| `POST` | `/workers/rss/fail` | echec technique de task |
+| `POST` | `/workers/rss/state` | etat runtime remonte par le worker RSS |
 
 ### Pipeline embeddings
 
 | Methode | Route officielle | Description |
 | --- | --- | --- |
-| `POST` | `/internal/workers/embedding/claim` | claim de task embedding |
-| `POST` | `/internal/workers/embedding/complete` | completion avec vecteurs |
-| `POST` | `/internal/workers/embedding/fail` | echec technique de task |
+| `POST` | `/workers/embedding/claim` | claim de task embedding |
+| `POST` | `/workers/embedding/complete` | completion avec vecteurs |
+| `POST` | `/workers/embedding/fail` | echec technique de task |
 
 ## Variables d'environnement
 
@@ -184,7 +175,6 @@ Le backend monte deux prefixes :
 | `DB_POOL_TIMEOUT_SECONDS` | `30` | timeout du pool |
 | `DB_POOL_RECYCLE_SECONDS` | `1800` | recycle des connexions |
 | `CORS_ORIGINS` | `*` | liste CSV ou `*` |
-| `MANIFEED_DISABLE_STARTUP_TASKS` | vide | desactive la projection loop au demarrage |
 
 ### Catalogue RSS
 
@@ -194,12 +184,11 @@ Le backend monte deux prefixes :
 | `RSS_FEEDS_REPOSITORY_BRANCH` | `main` | branche synchronisee |
 | `RSS_FEEDS_REPOSITORY_PATH` | `/tmp/rss_feeds` ou override compose | chemin local du clone |
 
-### Embeddings et projections
+### Embeddings
 
 | Variable | Defaut | Usage |
 | --- | --- | --- |
 | `EMBEDDING_MODEL_NAME` | `Xenova/multilingual-e5-large` | modele logique courant |
-| `BACKEND_PROJECTION_POLL_SECONDS` | `30` | frequence de la boucle de projection |
 | `SOURCE_EMBEDDING_TASK_BATCH_SIZE` | `128` | taille des tasks embedding |
 
 ### Jobs RSS
@@ -253,6 +242,5 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - En environnement Docker multi-repo, l'infra applique les migrations Alembic avant le demarrage du backend.
 - Les finalizers transforment les resultats techniques en donnees metier. Supprimer un job ne retire donc pas
   automatiquement les sources ou embeddings deja fusionnes.
-- La projection 2D est maintenue en fond et peut etre reconstruite integralement quand l'etat n'est plus courant.
 - Les routes admin publiques n'embarquent pas d'authentification applicative a ce stade ; il faut proteger
   l'exposition reseau en production.

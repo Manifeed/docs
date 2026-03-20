@@ -3,12 +3,11 @@
 ## Role
 
 Le repo `frontend/` est la console d'administration de Manifeed.
-Elle s'appuie directement sur l'API HTTP du backend et couvre six zones fonctionnelles :
+Elle s'appuie directement sur l'API HTTP du backend et couvre cinq zones fonctionnelles :
 
 - `Dashboard` : sante du service ;
 - `RSS` : sync du catalogue, toggles company/feed, lancement d'ingest ;
 - `Sources` : navigation dans les sources consolidees et lancement des embeddings ;
-- `Visualizer` : carte 2D des embeddings et recherche de voisins ;
 - `Jobs` : suivi detaille des jobs et suppression technique ;
 - `Workers` : presence, activite et etat courant des workers.
 
@@ -60,12 +59,6 @@ de l'utilisateur, pas seulement depuis le reseau Docker.
 - declenche `POST /rss/ingest`
 - declenche `POST /sources/embeddings/enqueue`
 
-### `/visualizer`
-
-- appelle `GET /sources/visualizer`
-- appelle `GET /sources/visualizer/{source_id}/neighbors`
-- appelle `GET /sources/{source_id}` pour la modal detail
-
 ### `/jobs`
 
 - appelle `GET /jobs`
@@ -78,7 +71,7 @@ de l'utilisateur, pas seulement depuis le reseau Docker.
 
 ### `/workers`
 
-- appelle `GET /internal/workers/overview`
+- appelle `GET /workers/overview`
 
 ## Organisation du code
 

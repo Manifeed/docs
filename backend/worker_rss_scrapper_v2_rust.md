@@ -52,8 +52,7 @@ Flux :
 
 Important :
 
-- le binaire utilise aujourd'hui le prefixe legacy `/workers/*` ;
-- le backend le mappe vers les routes officielles `/internal/workers/*`.
+- le binaire et le backend utilisent maintenant un prefixe unique `/workers/*`.
 
 ## Endpoints utilises
 

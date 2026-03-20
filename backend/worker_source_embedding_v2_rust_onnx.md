@@ -70,7 +70,7 @@ Force une sequence d'enrolement/authentification puis affiche un resume JSON.
 
 ## Authentification et endpoints
 
-Comme le worker RSS, le worker d'embeddings utilise actuellement le prefixe legacy `/workers/*`.
+Le worker d'embeddings consomme le prefixe officiel `/workers/*`.
 
 Routes utilisees :
 
@@ -82,8 +82,6 @@ Routes utilisees :
 | `POST` | `/workers/embedding/claim` | claim d'une task |
 | `POST` | `/workers/embedding/complete` | completion d'une task |
 | `POST` | `/workers/embedding/fail` | echec d'une task |
-
-Le backend publie la version officielle de ces routes sous `/internal/workers/*`.
 
 ## Boucle d'execution
 
@@ -172,8 +170,7 @@ export MANIFEED_EMBEDDING_ENROLLMENT_TOKEN=manifeed-embedding-enroll
 
 - le modele logique actif cote backend est determine par `EMBEDDING_MODEL_NAME` ;
 - le worker telecharge les artefacts du modele au besoin, puis les garde en cache local ;
-- le backend fusionne les resultats dans `rss_source_embeddings` et tente ensuite une mise a jour
-  incrementielle de la projection pour les sources du job ;
+- le backend fusionne les resultats dans `rss_source_embeddings` ;
 - l'installeur Linux provisionne aujourd'hui les bundles ONNX Runtime CPU ou CUDA, pas un runtime
   WebGPU partage ;
 - le fichier `dist/linux/worker-source-embedding/` est un artefact de distribution produit par script.

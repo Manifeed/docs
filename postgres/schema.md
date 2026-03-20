@@ -134,7 +134,7 @@ PK composite :
 - `(source_id, embedding_model_id)`
 
 La revision `v1_5_embed_finalization_idx` ajoute un index supplementaire sur
-`(embedding_model_id, source_id)` pour accelerer la finalisation et la projection.
+`(embedding_model_id, source_id)` pour accelerer la finalisation.
 
 ## 4. Pipeline RSS
 
@@ -371,47 +371,7 @@ Colonnes clefs :
 - `max_batch_size`
 - `enabled`
 
-## 7. Projection d'embeddings
-
-### `embedding_projections`
-
-Etat versionne d'une projection 2D pour un modele donne.
-
-Colonnes clefs :
-
-- `id`
-- `embedding_model_id`
-- `projector_kind`
-- `projection_version`
-- `projector_state`
-- `fitted_source_total`
-- `last_embedding_updated_at`
-- `active`
-- `created_at`
-- `updated_at`
-
-Contrainte :
-
-- unicite `(embedding_model_id, projection_version)`
-
-### `embedding_projection_points`
-
-Coordonnees 2D par source pour une projection donnee.
-
-Colonnes clefs :
-
-- `projection_id`
-- `source_id`
-- `x`
-- `y`
-- `embedding_updated_at`
-- `projected_at`
-
-PK composite :
-
-- `(projection_id, source_id)`
-
-## 8. Etat de sync RSS
+## 7. Etat de sync RSS
 
 ### `rss_catalog_sync_state`
 

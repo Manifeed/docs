@@ -7,7 +7,7 @@ Il contient a la fois :
 
 - le catalogue RSS ;
 - les sources consolidees ;
-- les embeddings et leurs projections ;
+- les embeddings ;
 - les jobs et tasks techniques ;
 - les identites et etats runtime des workers.
 

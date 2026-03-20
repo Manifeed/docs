@@ -36,10 +36,6 @@ erDiagram
     worker_registry ||--|| worker_runtime : exposes
     worker_registry ||--o{ worker_capabilities : declares
     embedding_models ||--o{ worker_capabilities : limits
-
-    embedding_models ||--o{ embedding_projections : projected_as
-    embedding_projections ||--o{ embedding_projection_points : contains
-    rss_sources ||--o{ embedding_projection_points : mapped_from
 ```
 
 ## Vue ASCII
@@ -64,9 +60,6 @@ rss_embedding_jobs (1) ---- (0..n) rss_embedding_results (n..0) ---- (1) embeddi
 worker_registry (1) ---- (0..n) worker_auth_challenges
 worker_registry (1) ---- (0..1) worker_runtime
 worker_registry (1) ---- (0..n) worker_capabilities (n..0) ---- (0..1) embedding_models
-
-embedding_models (1) ---- (0..n) embedding_projections
-embedding_projections (1) ---- (0..n) embedding_projection_points (n..0) ---- (1) rss_sources
 ```
 
 ## Notes importantes
@@ -76,6 +69,5 @@ embedding_projections (1) ---- (0..n) embedding_projection_points (n..0) ---- (1
   les fusionnent ensuite dans `rss_sources`, `rss_source_embeddings` et `rss_feed_runtime`.
 - `worker_runtime` ne reference pas formellement une table d'executions ; il stocke l'etat courant d'une
   machine vue par le backend.
-- `embedding_projection_points` depend d'une projection active versionnee dans `embedding_projections`.
 - `rss_catalog_sync_state` est volontairement isolee : elle ne reference aucune autre table et sert
   uniquement a memoriser l'etat de sync du depot RSS.
