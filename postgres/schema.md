@@ -1,14 +1,16 @@
 # Schema PostgreSQL
 
-Le schema de reference est defini par les migrations Alembic de `infra/postgres_migration/alembic/versions/`.
-La baseline actuelle est `v1_initialization`, completee par `v1_1` a `v1_5`.
+Le schema de reference est defini par les migrations Alembic de
+`infra/postgres_migration/alembic/versions/`.
+La baseline courante est `v1_8_embedding_workers_pseudos`.
 
 ## Conventions
 
-- les tables metier et techniques vivent dans le meme schema `public`
+- les tables metier et techniques vivent dans le schema `public`
 - les dates sont stockees en `TIMESTAMPTZ`
-- les jobs sont separes entre pipeline RSS et pipeline embeddings
-- les workers n'ecrivent jamais directement dans les tables finales
+- les jobs RSS et embedding sont separes
+- les workers n'ecrivent jamais directement dans les tables metier finales
+- le pipeline embedding est versionne par `worker_version`, pas par catalogue de modeles
 
 ## 1. Catalogue RSS
 
@@ -87,7 +89,7 @@ Colonnes clefs :
 Notes :
 
 - l'identite est basee sur une URL normalisee ou un fallback derive du contenu ;
-- la migration `v1_4_rss_source_identity` recentre la canonisation autour des URLs normalisees.
+- la migration de canonisation recentre l'unicite sur `identity_key`.
 
 ### `rss_source_feeds`
 
@@ -103,38 +105,119 @@ PK composite :
 
 - `(feed_id, source_id)`
 
-## 3. Embeddings
-
-### `embedding_models`
-
-Catalogue des modeles d'embeddings connus.
-
-Colonnes clefs :
-
-- `id`
-- `code` unique
-- `label`
-- `dimensions`
-- `created_at`
-- `updated_at`
-
 ### `rss_source_embeddings`
 
-Stockage final des embeddings actifs par source et modele.
+Stockage final des embeddings actifs par source et version de worker.
 
 Colonnes clefs :
 
 - `source_id`
-- `embedding_model_id`
+- `worker_version`
 - `embedding` (`float[]`)
 - `updated_at`
 
 PK composite :
 
-- `(source_id, embedding_model_id)`
+- `(source_id, worker_version)`
 
-La revision `v1_5_embed_finalization_idx` ajoute un index supplementaire sur
-`(embedding_model_id, source_id)` pour accelerer la finalisation.
+Indexes notables :
+
+- `idx_rss_source_embeddings_worker_version_source` sur `(worker_version, source_id)`
+
+Important :
+
+- le backend ne stocke plus de table `embedding_models` ;
+- le modele applicatif est fixe a `Xenova/multilingual-e5-large` ;
+- seule la version logique du pipeline (`worker_version`) est persistee.
+
+## 3. Authentification applicative et identite workers
+
+### `users`
+
+Utilisateurs applicatifs.
+
+Colonnes clefs :
+
+- `id`
+- `email` unique
+- `pseudo` unique
+- `password_hash`
+- `role`
+- `is_active`
+- `api_access_enabled`
+- `created_at`
+- `updated_at`
+
+`pseudo` est normalise cote backend et sert a calculer automatiquement les noms de workers.
+
+### `user_sessions`
+
+Sessions web du frontend/admin.
+
+Colonnes clefs :
+
+- `id`
+- `user_id`
+- `token_hash`
+- `expires_at`
+- `revoked_at`
+- `created_at`
+
+### `user_api_keys`
+
+Cles Bearer destinees aux workers.
+
+Colonnes clefs :
+
+- `id`
+- `user_id`
+- `label`
+- `worker_type`
+- `worker_number`
+- `key_prefix`
+- `key_hash`
+- `last_used_at`
+- `revoked_at`
+- `created_at`
+
+Contraintes notables :
+
+- unicite `(user_id, worker_type, worker_number)`
+
+Le backend derive le nom expose du worker a partir de :
+
+- `slug(users.pseudo)`
+- un type court (`rss` ou `embedding`)
+- `worker_number`
+
+Exemple : `alice-rss-1`, `alice-embedding-2`.
+
+### `worker_runtime`
+
+Etat runtime courant vu par le backend pour une cle API worker.
+
+Colonnes clefs :
+
+- `api_key_id`
+- `worker_name`
+- `worker_version` nullable
+- `connection_state`
+- `desired_state`
+- `active`
+- `last_seen_at`
+- `current_job_kind`
+- `current_task_id`
+- `current_execution_id`
+- `current_task_label`
+- `current_feed_id`
+- `current_feed_url`
+- `active_claim_count`
+- `last_error`
+
+Notes :
+
+- `worker_name` reste stocke comme information technique de dernier heartbeat ;
+- les vues backend recalculent le nom canonique a partir de `users.pseudo` et `user_api_keys.worker_number`.
 
 ## 4. Pipeline RSS
 
@@ -187,8 +270,8 @@ Colonnes clefs :
 
 Notes :
 
-- la revision `v1_2_rss_task_feed_unique` rend `feed_id` unique a l'echelle de la queue ;
-- cela evite que le meme feed soit simultanement attache a plusieurs tasks RSS.
+- `feed_id` est unique a l'echelle de la queue ;
+- cela evite qu'un meme feed soit simultanement present dans plusieurs tasks RSS.
 
 ### `rss_scrape_result_feeds`
 
@@ -228,7 +311,7 @@ Colonnes clefs :
 - `image_url`
 - `created_at`
 
-## 5. Pipeline embeddings
+## 5. Pipeline embedding versionne
 
 ### `rss_embedding_jobs`
 
@@ -246,8 +329,12 @@ Colonnes clefs :
 - `embedding_total`
 - `embedding_success`
 - `embedding_error`
-- `embedding_model_id`
+- `worker_version`
 - `finalized_at`
+
+Indexes notables :
+
+- `idx_rss_embedding_jobs_worker_version_status`
 
 ### `rss_embedding_tasks`
 
@@ -290,92 +377,22 @@ Colonnes clefs :
 - `job_id`
 - `task_id`
 - `source_id`
-- `embedding_model_id`
+- `worker_version`
 - `worker_id`
 - `embedding`
 - `created_at`
 
-La revision `v1_5_embed_finalization_idx` ajoute un index sur
-`(job_id, source_id, embedding_model_id, created_at DESC, id DESC)` pour accelerer
-la selection du dernier embedding par source lors de la finalisation.
+Index notable :
 
-## 6. Workers
+- `idx_rss_embedding_results_job_latest` sur
+  `(job_id, source_id, worker_version, created_at, id)` ;
+- la finalisation relit ensuite le dernier resultat par `(source_id, worker_version)`.
 
-### `worker_registry`
-
-Identite persistante des workers.
-
-Colonnes clefs :
-
-- `id`
-- `worker_kind`
-- `device_id`
-- `public_key`
-- `fingerprint`
-- `display_name`
-- `hostname`
-- `platform`
-- `arch`
-- `worker_version`
-- `enabled`
-- `enrolled_at`
-- `last_auth_at`
-
-Contraintes :
-
-- unicite `(worker_kind, device_id)`
-- unicite `fingerprint`
-
-### `worker_auth_challenges`
-
-Challenges courts pour `enroll` et `auth`.
-
-Colonnes clefs :
-
-- `id`
-- `worker_id`
-- `purpose`
-- `challenge`
-- `expires_at`
-- `used_at`
-- `created_at`
-
-### `worker_runtime`
-
-Etat runtime courant du worker vu par le backend.
-
-Colonnes clefs :
-
-- `worker_id`
-- `worker_name`
-- `runtime_kind`
-- `connection_state`
-- `desired_state`
-- `active`
-- `last_seen_at`
-- `current_job_kind`
-- `current_task_id`
-- `current_execution_id`
-- `active_claim_count`
-- `last_error`
-
-### `worker_capabilities`
-
-Capacites declarees par worker.
-
-Colonnes clefs :
-
-- `worker_id`
-- `job_kind`
-- `embedding_model_id`
-- `max_batch_size`
-- `enabled`
-
-## 7. Etat de sync RSS
+## 6. Etat de sync RSS
 
 ### `rss_catalog_sync_state`
 
-Table ajoutee par `v1_1_add_rss_catalog_sync_state`.
+Table ajoutee pour memoriser l'etat de synchronisation du depot RSS.
 
 Colonnes clefs :
 
@@ -388,9 +405,9 @@ Colonnes clefs :
 
 Elle permet au backend de savoir si un `rss/sync` doit rejouer un reconcile complet ou non.
 
-## 9. Fonctions de retention
+## 7. Fonctions de retention
 
-- `cleanup_expired_job_data(interval)` supprime les jobs RSS et embeddings anciens ;
-- `cleanup_expired_worker_auth_challenges(interval)` supprime les challenges expires ou consommes.
+- `normalize_rss_source_url(text)` normalise les URLs sources ;
+- `cleanup_expired_job_data(interval)` supprime les jobs RSS et embedding anciens.
 
-Ces fonctions existent, mais leur ordonnancement est externe au code applicatif.
+Ces fonctions existent, mais leur ordonnancement reste externe au code applicatif.

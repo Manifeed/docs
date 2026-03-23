@@ -19,9 +19,23 @@ Le worker ne parle pas directement a PostgreSQL.
 
 ## Configuration
 
-Le worker charge sa configuration depuis l'environnement.
+Le worker charge d'abord une configuration locale persistante stockee dans `workers.json`.
+Les variables d'environnement historiques restent supportees comme overrides experts.
 
-### Variables principales
+### Configuration nominale
+
+L'installation standard renseigne seulement :
+
+- `api_url`
+- `api_key`
+
+Puis le binaire lit automatiquement :
+
+- `~/.config/manifeed/workers.json`
+- `~/.cache/manifeed/rss/worker.log`
+- `~/.local/state/manifeed/rss/status.json`
+
+### Variables d'environnement expertes
 
 | Variable | Defaut | Usage |
 | --- | --- | --- |
@@ -34,33 +48,43 @@ Le worker charge sa configuration depuis l'environnement.
 | `MANIFEED_RSS_MAX_CLAIMED_TASKS` | `5` | nombre max de tasks claim simultanement |
 | `MANIFEED_RSS_REQUEST_TIMEOUT_SECONDS` | `10` | timeout HTTP |
 | `MANIFEED_RSS_FETCH_RETRY_COUNT` | `1` | retries de fetch |
-| `MANIFEED_RSS_IDENTITY_DIR` | auto | stockage de l'identite locale |
-| `MANIFEED_RSS_ENROLLMENT_TOKEN` | vide | token d'enrolement initial |
+## CLI
+
+Le binaire expose maintenant :
+
+```bash
+worker-rss install --api-url ... --api-key ...
+worker-rss run
+worker-rss config show
+worker-rss config set api-url https://api.example.com
+worker-rss config set api-key mfk_live_xxxxx
+worker-rss config set service-mode background
+worker-rss doctor
+worker-rss version
+worker-rss service install
+worker-rss service start
+worker-rss service stop
+worker-rss service uninstall
+```
+
+## Manuel ou service utilisateur
+
+- `Manuel` : le worker tourne seulement quand tu le lances depuis `worker-rss run` ou depuis l'app desktop. C'est le mode simple pour tester, depanner ou lancer ponctuellement.
+- `Service utilisateur` : le worker est installe comme service OS utilisateur. Il peut continuer a tourner sans garder la fenetre desktop ouverte et convient a une machine dediee.
+
+L'app `Manifeed Workers` expose explicitement ces deux modes dans la page `Scraping`.
 
 ## Authentification
 
-L'authentification est geree par `manifeed-worker-common`.
-
-Flux :
-
-1. creation ou chargement d'une identite locale ;
-2. si le worker n'est pas enrole, `POST /workers/enroll` ;
-3. signature du challenge renvoye par le backend ;
-4. `POST /workers/auth/verify` ;
-5. reutilisation du JWT tant qu'il est valide ;
-6. re-challenge automatique si la session expire.
-
-Important :
-
-- le binaire et le backend utilisent maintenant un prefixe unique `/workers/*`.
+L'authentification utilise une cle API worker Bearer.
+Le nom du worker est derive uniquement par le backend a partir du pseudo utilisateur.
 
 ## Endpoints utilises
 
 | Methode | Route utilisee par le binaire | Role |
 | --- | --- | --- |
-| `POST` | `/workers/enroll` | enrolement initial |
-| `POST` | `/workers/auth/challenge` | challenge d'auth |
-| `POST` | `/workers/auth/verify` | verification de signature |
+| `GET` | `/workers/ping` | test de connexion local |
+| `GET` | `/workers/releases/manifest` | verification de version |
 | `POST` | `/workers/rss/claim` | claim de tasks |
 | `POST` | `/workers/rss/complete` | completion de task |
 | `POST` | `/workers/rss/fail` | echec de task |
@@ -89,12 +113,18 @@ Depuis la racine du repo `workers` :
 cargo build --release -p worker-rss
 ```
 
-Puis :
+Initialisation persistante :
 
 ```bash
-export MANIFEED_API_URL=http://127.0.0.1:8000
-export MANIFEED_RSS_ENROLLMENT_TOKEN=manifeed-rss-enroll
-./target/release/worker-rss
+./target/release/worker-rss install \
+  --api-url http://127.0.0.1:8000 \
+  --api-key mfk_live_xxxxx
+```
+
+Puis lancement :
+
+```bash
+./target/release/worker-rss run
 ```
 
 Avec logs stdout renforces :
@@ -105,7 +135,10 @@ Avec logs stdout renforces :
 
 ## Points d'exploitation
 
-- le worker ne dispose pas d'installeur dedie dans ce depot ;
-- son identite locale persiste entre les runs ;
-- si le backend oublie l'identite, le mecanisme commun peut reenroller automatiquement le worker ;
+- le bundle Linux `installers/linux/worker-rss/` fournit la meme experience d'installation que l'embedding ;
+- la desktop app partagee `Manifeed Workers` expose maintenant une page dediee `Scraping` avec :
+  - actions de demarrage / arret / redemarrage ;
+  - edition de `api_url`, `api_key` et du mode `Manuel` / `Service utilisateur` ;
+  - lecture du status file local, des logs et du runtime local ;
+- le worker verifie sa version au lancement et bloque seulement si elle est sous la version minimale supportee ;
 - le backend reste la source de verite pour l'etat runtime visible dans la page `Workers`.

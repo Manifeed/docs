@@ -7,9 +7,10 @@ Il contient a la fois :
 
 - le catalogue RSS ;
 - les sources consolidees ;
-- les embeddings ;
+- les embeddings finalises ;
 - les jobs et tasks techniques ;
-- les identites et etats runtime des workers.
+- les utilisateurs, sessions web et cles API workers ;
+- l'etat runtime courant des workers.
 
 ## Configuration actuelle
 
@@ -39,9 +40,7 @@ Sequence normale :
 3. les revisions Alembic sont appliquees ;
 4. le backend peut ensuite devenir disponible.
 
-Commandes utiles :
-
-Depuis le repo `infra/` :
+Commandes utiles depuis le repo `infra/` :
 
 ```bash
 make db-migrate
@@ -62,12 +61,11 @@ La revision `v1_3_enable_pgcrypto` active `pgcrypto`.
 Le schema courant declare aussi plusieurs fonctions utilitaires :
 
 - `normalize_rss_source_url(text)` : normalisation d'URL pour l'identite des sources ;
-- `cleanup_expired_job_data(interval)` : purge des jobs anciens ;
-- `cleanup_expired_worker_auth_challenges(interval)` : purge des challenges workers anciens.
+- `cleanup_expired_job_data(interval)` : purge des jobs anciens.
 
 Important :
 
-- ces fonctions de retention existent en base ;
+- ces fonctions existent en base ;
 - leur execution periodique n'est pas planifiee par l'application ;
 - en production, il faut les scheduler explicitement via l'infra (`pg_cron`, cron externe, job Ops).
 
@@ -85,7 +83,7 @@ docker compose -f docker-compose.yml exec postgres pg_isready -U manifeed -d man
 ### Sauvegarde
 
 Le volume `pgdata` doit etre sauvegarde comme donnee persistante critique.
-La base contient les donnees metier finales, pas seulement des files d'attente techniques.
+La base contient les donnees metier finales, les identites utilisateurs et les cles workers.
 
 ### Securite
 
