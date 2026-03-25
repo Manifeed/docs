@@ -2,97 +2,46 @@
 
 ## Role
 
-PostgreSQL est le stockage unique de Manifeed.
-Il contient a la fois :
+PostgreSQL porte le stockage relationnel de Manifeed : catalogue RSS, auth, control plane worker, queue de jobs, stockage canonique des articles, buffers de pipeline et audit.
 
-- le catalogue RSS ;
-- les sources consolidees ;
-- les embeddings finalises ;
-- les jobs et tasks techniques ;
-- les utilisateurs, sessions web et cles API workers ;
-- l'etat runtime courant des workers.
-
-## Configuration actuelle
-
-Dans `infra/docker-compose.yml` :
-
-- image : `postgres:15`
-- conteneur : `manifeed_postgres`
-- volume : `pgdata:/var/lib/postgresql/data`
-- port expose : `5432:5432`
-- reseau principal : `manifeed_internal`
-
-Variables standard :
-
-- `POSTGRES_DB` (defaut `manifeed`)
-- `POSTGRES_USER` (defaut `manifeed`)
-- `POSTGRES_PASSWORD` (defaut `manifeed`)
+Les vecteurs finaux sont indexes dans Qdrant, mais leur etat de reference reste suivi dans PostgreSQL via `embedding_manifest`.
 
 ## Migrations
 
-Les migrations sont gerees par Alembic dans `infra/postgres_migration/alembic/`.
-Leur orchestration appartient a `infra/`, pas au cycle de vie du conteneur backend.
+Les migrations vivent dans `infra/postgres_migration/alembic/`.
+La reference courante est une baseline unique : `1_0_baseline`.
 
-Sequence normale :
+Flux normal en developpement :
 
-1. `infra` demarre PostgreSQL ;
-2. le service one-shot `db_migrations` execute `alembic upgrade head` ;
-3. les revisions Alembic sont appliquees ;
-4. le backend peut ensuite devenir disponible.
+1. reset de la base ou du schema
+2. `alembic upgrade head`
+3. lancement du backend
 
-Commandes utiles depuis le repo `infra/` :
+Le projet ne maintient plus de migration progressive vers une architecture `v2`.
+
+## Exploitation locale
+
+Depuis `infra/` :
 
 ```bash
 make db-migrate
 make db-reset
-```
-
-`make db-reset` :
-
-- drop le schema `public`
-- le recree
-- relance les migrations via le service `db_migrations`
-
-Cette commande est destructive.
-
-## Extensions et fonctions SQL
-
-La revision `v1_3_enable_pgcrypto` active `pgcrypto`.
-Le schema courant declare aussi plusieurs fonctions utilitaires :
-
-- `normalize_rss_source_url(text)` : normalisation d'URL pour l'identite des sources ;
-- `cleanup_expired_job_data(interval)` : purge des jobs anciens.
-
-Important :
-
-- ces fonctions existent en base ;
-- leur execution periodique n'est pas planifiee par l'application ;
-- en production, il faut les scheduler explicitement via l'infra (`pg_cron`, cron externe, job Ops).
-
-## Exploitation
-
-### Commandes utiles
-
-```bash
-cd ../infra
 make logs SERVICE=postgres
-docker compose -f docker-compose.yml exec postgres psql -U manifeed -d manifeed
-docker compose -f docker-compose.yml exec postgres pg_isready -U manifeed -d manifeed
 ```
 
-### Sauvegarde
+`make db-reset` est destructif : il recree un schema vierge puis reapplique la baseline.
 
-Le volume `pgdata` doit etre sauvegarde comme donnee persistante critique.
-La base contient les donnees metier finales, les identites utilisateurs et les cles workers.
+## Configuration standard
 
-### Securite
+- image Docker : `postgres:15`
+- base par defaut : `manifeed`
+- utilisateur par defaut : `manifeed`
+- mot de passe par defaut : `manifeed`
+- port local : `5432`
 
-- n'exposez pas PostgreSQL publiquement ;
-- isolez-le derriere le reseau interne du stack ;
-- changez les credentials par defaut hors developpement ;
-- surveillez la taille des tables de jobs et resultats si aucun nettoyage periodique n'est en place.
+## Vigilances
 
-## Documents associes
-
-- `postgres/schema.md`
-- `postgres/relations.md`
+- ne pas exposer PostgreSQL publiquement
+- changer les credentials hors developpement
+- surveiller la croissance des tables `worker_*`, `staging_*`, `ingest_events` et `dedup_decisions`
+- considerer les buffers `staging_*` comme des traces de pipeline, pas comme des tables de lecture produit

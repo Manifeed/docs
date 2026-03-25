@@ -17,4 +17,8 @@ Depot de documentation du split multi-repo Manifeed.
 - `postgres/` : schema et exploitation PostgreSQL
 - `migrations/` : historiques de migration d'architecture
 
+## Ajouts notables
+
+- `migrations/hyper_scale_v2/` : plan cible hyper-scale, schema DB cible et migration par phases
+
 Le dossier `frontend_admin/` conserve son nom historique, mais il documente bien le repo `frontend`.
