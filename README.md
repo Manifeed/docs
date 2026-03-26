@@ -13,6 +13,10 @@ Depot de documentation du split multi-repo Manifeed.
 ## Contenu
 
 - `backend/` : backend, workers et notes d'architecture
+  - `backend/backend.md` : vue d'ensemble backend et diagrammes des flux critiques
+  - `backend/routes/` : reference detaillee route par route, splittee par domaine
+  - `backend/routes_review.md` : index de navigation vers la reference detaillee
+  - `backend/routes_to_consumers.md` : matrice route -> consommateurs versionnes
 - `frontend_admin/` : documentation de la console d'administration
 - `postgres/` : schema et exploitation PostgreSQL
 - `migrations/` : historiques de migration d'architecture
