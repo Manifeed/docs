@@ -86,15 +86,15 @@ flowchart LR
 
 - `GET/PATCH /admin/users`
 - `GET /health/`
+- `GET /jobs*`
+- `POST /jobs/rss-scrape`
+- `POST /jobs/source-embedding`
 - `GET /rss/`
 - `PATCH /rss/feeds/{feed_id}/enabled`
 - `PATCH /rss/companies/{company_id}/enabled`
 - `POST /rss/sync`
 - `GET /rss/img/{icon_url}`
-- `POST /rss/ingest`
 - `GET /sources/*`
-- `POST /sources/embeddings/enqueue`
-- `GET /jobs*`
 
 ### Gateway worker
 
@@ -186,7 +186,7 @@ sequenceDiagram
     participant Worker as Worker RSS
 
     Admin->>Front: enqueue RSS ingest
-    Front->>API: POST /rss/ingest
+    Front->>API: POST /jobs/rss-scrape
     API->>API: acquire job_lock rss_ingest
     API->>DB: read rss_feeds + rss_company + rss_feed_runtime
     API->>DB: insert worker_jobs
@@ -216,7 +216,7 @@ sequenceDiagram
     participant Qdrant
 
     Admin->>Front: enqueue embeddings
-    Front->>API: POST /sources/embeddings/enqueue
+    Front->>API: POST /jobs/source-embedding
     API->>API: acquire job_lock sources_enqueue_embeddings
     API->>DB: read articles without indexed embedding_manifest
     API->>DB: insert worker_jobs

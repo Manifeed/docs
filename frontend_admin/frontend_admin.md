@@ -8,7 +8,7 @@ Elle s'appuie directement sur l'API HTTP du backend et couvre cinq zones fonctio
 - `Dashboard` : sante du service ;
 - `RSS` : sync du catalogue, toggles company/feed, lancement d'ingest ;
 - `Sources` : navigation dans les sources consolidees et lancement des embeddings ;
-- `Jobs` : suivi detaille des jobs et suppression technique ;
+- `Jobs` : suivi detaille des jobs techniques ;
 - `Workers` : presence, activite et etat courant des workers.
 
 ## Stack technique
@@ -45,7 +45,7 @@ de l'utilisateur, pas seulement depuis le reseau Docker.
 - appelle `GET /rss/`
 - declenche `POST /rss/sync`
 - declenche `POST /rss/sync?force=true`
-- declenche `POST /rss/ingest`
+- declenche `POST /jobs/rss-scrape`
 - applique `PATCH /rss/feeds/{feed_id}/enabled`
 - applique `PATCH /rss/companies/{company_id}/enabled`
 - construit les URLs d'icones via `GET /rss/img/{icon_url:path}`
@@ -56,18 +56,14 @@ de l'utilisateur, pas seulement depuis le reseau Docker.
 - appelle `GET /sources/feeds/{feed_id}`
 - appelle `GET /sources/companies/{company_id}`
 - appelle `GET /sources/{source_id}`
-- declenche `POST /rss/ingest`
-- declenche `POST /sources/embeddings/enqueue`
+- declenche `POST /jobs/rss-scrape`
+- declenche `POST /jobs/source-embedding`
 
 ### `/jobs`
 
 - appelle `GET /jobs`
 - appelle `GET /jobs/{job_id}`
 - appelle `GET /jobs/{job_id}/tasks`
-- appelle `GET /jobs/{job_id}/feeds`
-- appelle `GET /jobs/{job_id}/sources`
-- appelle `GET /jobs/{job_id}/embeddings`
-- appelle `DELETE /jobs/{job_id}`
 
 ### `/workers`
 
@@ -101,7 +97,8 @@ yarn start
 ## Notes de developpement
 
 - Le frontend utilise `fetch` cote navigateur, sans proxy applicatif.
-- Le client HTTP leve `ApiRequestError` et reprend en priorite `payload.message` ou `payload.detail`.
+- Le client HTTP leve `ApiRequestError` et reprend en priorite `payload.message`.
+- Les erreurs backend admin sont normalisees sur `code`, `message` et `details?`.
 - Les pages `Jobs` et `Workers` se rafraichissent periodiquement pour offrir un suivi quasi temps reel.
 - Le depot ne contient pas aujourd'hui de suite de tests frontend versionnee.
 

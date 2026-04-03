@@ -17,7 +17,7 @@ Colonnes importantes : `company_id`, `url`, `section`, `trust_score`, `enabled`.
 ### `rss_feed_runtime`
 
 Etat runtime consolide d'un feed.
-Colonnes importantes : `last_status`, `last_scraped_at`, `last_success_at`, `last_error_at`, `etag`, `last_feed_update`, `last_article_published_at`.
+Colonnes importantes : `last_status`, `last_scraped_at`, `last_error_at`, `last_error_code`, `etag`, `last_feed_update`, `last_article_published_at`.
 
 ### `rss_tags` et `rss_feed_tags`
 
@@ -78,11 +78,21 @@ Colonnes importantes : `task_type`, `queue_lane`, `worker_version`, `status`, `a
 ### `articles`
 
 Table principale des articles normalises.
-Colonnes importantes : `article_key`, `shard_id`, `published_at`, `canonical_url`, `title`, `summary`, `author`, `image_url`, `language`, `company_id`.
+Colonnes importantes : `article_key`, `published_at`, `canonical_url`, `title`, `summary`, `image_url`, `language`, `company_id`.
+
+### `authors`
+
+Referentiel canonique des auteurs normalises.
+Colonnes importantes : `normalized_name`, `display_name`.
+
+### `article_authors`
+
+Relation article <-> auteur avec ordre de presentation.
+Colonnes importantes : `article_id`, `author_id`, `position`.
 
 ### `article_feed_links`
 
-Relation article <-> feed avec horodatages de premiere et derniere observation.
+Relation article <-> feed avec horodatage de premiere observation.
 
 ### `article_versions`
 

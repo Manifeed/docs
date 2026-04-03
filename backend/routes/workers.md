@@ -110,14 +110,11 @@ flowchart LR
 - Tables / systemes :
   - toujours : `worker_leases`, `worker_tasks`, `worker_jobs`.
   - branche RSS :
-    - `staging_feed_fetch_results` ;
-    - `staging_article_candidates` ;
     - `articles` ;
+    - `authors` ;
+    - `article_authors` ;
     - `article_feed_links` ;
-    - `article_versions` ;
     - `rss_feed_runtime` ;
-    - `ingest_events` ;
-    - `dedup_decisions`.
   - branche embedding :
     - `embedding_manifest` ;
     - Qdrant.
