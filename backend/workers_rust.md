@@ -82,6 +82,18 @@ Le backend :
 
 ## Releases
 
-Le backend peut servir un manifest de release via `GET /workers/releases/manifest`.
-Le crate partage `manifeed-worker-common` l'utilise pour verifier la compatibilite
-de version et la disponibilite d'une mise a jour.
+Le backend expose maintenant un catalogue de releases desktop / RSS / embedding.
+Le crate partage `manifeed-worker-common` utilise `GET /workers/releases/manifest`
+pour resoudre l'artefact compatible avec le host courant et verifier la compatibilite
+de version.
+
+Points cle :
+
+- le desktop se met a jour contre la famille `desktop` uniquement ;
+- RSS et Embedding se mettent a jour independamment avec leurs propres versions de bundle ;
+- `embedding` transporte aussi un `worker_version` metier distinct du `package.version` ;
+- le telechargement desktop est public ;
+- les bundles RSS / Embedding sont telecharges depuis `GET /workers/releases/download/{artifact_name}`
+  avec Bearer worker ;
+- le backend derive la version worker active du catalogue au lieu d'une variable frontend ou d'un
+  hardcode partage.

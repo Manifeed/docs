@@ -187,7 +187,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     worker["Worker common"] --> route["GET /workers/releases/manifest"]
-    route --> config["Charger manifest depuis env ou fichier"]
+    route --> config["Charger catalogue depuis env ou fichier"]
     config --> match["Filtrer product, platform, arch"]
     match --> response[["200 WorkerReleaseManifestRead"]]
     match -. aucun match .-> e404[["404 Manifest not found"]]
@@ -206,4 +206,49 @@ flowchart LR
   - `404` aucun manifest configure pour la combinaison demandee.
 - Tables / systemes :
   - aucun acces DB ;
-  - lecture configuration via `WORKER_RELEASE_MANIFEST_JSON` ou `WORKER_RELEASE_MANIFEST_PATH`.
+  - lecture configuration via `WORKER_RELEASE_CATALOG_JSON` ou `WORKER_RELEASE_CATALOG_PATH`.
+
+## GET /workers/releases/desktop
+
+```mermaid
+flowchart LR
+    web["Frontend workspace"] --> route["GET /workers/releases/desktop"]
+    route --> config["Charger catalogue"]
+    config --> filter["Garder uniquement family=desktop"]
+    filter --> response[["200 WorkerDesktopReleaseListRead"]]
+```
+
+- Consommateurs :
+  - `frontend/src/app/app/workers/page.tsx`
+- Securite : `Public`.
+- Output :
+  - `200` `WorkerDesktopReleaseListRead`.
+- Notes :
+  - la page frontend `/app/workers` qui consomme cette route exige une session utilisateur ;
+  - le backend fournit deja les labels UI desktop ;
+  - le frontend ne recompose plus `product/platform/arch`.
+
+## GET /workers/releases/download/{artifact_name}
+
+```mermaid
+flowchart LR
+    actor["Desktop app / navigateur / worker"] --> route["GET /workers/releases/download/{artifact_name}"]
+    route --> catalog["Lookup artifact_name dans le catalogue"]
+    catalog --> auth{"download_auth"}
+    auth -->|public| file["Servir le fichier"]
+    auth -->|worker_bearer| bearer["Verifier Bearer worker + owner + type"]
+    bearer --> file
+    catalog -. absent .-> e404[["404 Artifact not found"]]
+    bearer -. refus .-> e401[["401/403 Reject request"]]
+```
+
+- Consommateurs :
+  - page frontend `/app/workers`
+  - application desktop pour l'installation RSS / embedding
+- Securite :
+  - `Public` pour `download_auth=public`
+  - `Worker bearer` pour `download_auth=worker_bearer`
+- Notes :
+  - `workers_desktop_app` et `manifeed-workers-desktop` sont publics ;
+  - `rss_worker_bundle` exige une cle `rss_scrapper` ;
+  - `embedding_worker_bundle` exige une cle `source_embedding`.
