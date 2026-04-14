@@ -3,27 +3,27 @@
 ## Role
 
 Les binaires Rust n'accedent ni directement a PostgreSQL, ni a Qdrant.
-Ils parlent exclusivement au backend via le gateway HTTP `/workers/*`.
+Ils parlent exclusivement au backend via le gateway HTTP `/workers/api/*`.
 
 ## Endpoints consommes actuellement
 
 ### Worker RSS
 
-- `GET /workers/ping`
-- `POST /workers/sessions/open`
-- `POST /workers/tasks/claim`
-- `POST /workers/tasks/complete`
-- `POST /workers/tasks/fail`
-- `GET /workers/releases/manifest`
+- `GET /workers/api/ping`
+- `POST /workers/api/sessions/open`
+- `POST /workers/api/tasks/claim`
+- `POST /workers/api/tasks/complete`
+- `POST /workers/api/tasks/fail`
+- `GET /workers/api/releases/manifest`
 
 ### Worker embedding
 
-- `GET /workers/ping`
-- `POST /workers/sessions/open`
-- `POST /workers/tasks/claim`
-- `POST /workers/tasks/complete`
-- `POST /workers/tasks/fail`
-- `GET /workers/releases/manifest`
+- `GET /workers/api/ping`
+- `POST /workers/api/sessions/open`
+- `POST /workers/api/tasks/claim`
+- `POST /workers/api/tasks/complete`
+- `POST /workers/api/tasks/fail`
+- `GET /workers/api/releases/manifest`
 
 ## Protocole commun
 
@@ -34,16 +34,16 @@ sequenceDiagram
     participant DB as PostgreSQL
 
     Worker->>API: Bearer API key
-    Worker->>API: POST /workers/sessions/open
+    Worker->>API: POST /workers/api/sessions/open
     API->>DB: worker_sessions
     loop tant que du travail existe
-        Worker->>API: POST /workers/tasks/claim
+        Worker->>API: POST /workers/api/tasks/claim
         API->>DB: worker_tasks + worker_leases
         alt succes
-            Worker->>API: POST /workers/tasks/complete
+            Worker->>API: POST /workers/api/tasks/complete
             API->>DB: finalize task/job/lease
         else erreur
-            Worker->>API: POST /workers/tasks/fail
+            Worker->>API: POST /workers/api/tasks/fail
             API->>DB: finalize task/job/lease en echec
         end
     end
@@ -51,7 +51,7 @@ sequenceDiagram
 
 ## Authentification et integrite
 
-- l'API key worker provient de `POST /account/api-keys` ;
+- l'API key worker provient de `POST /api/account/api-keys` ;
 - la cle brute n'est renvoyee qu'une seule fois a la creation ;
 - le backend stocke uniquement `user_api_keys.key_hash` ;
 - `complete` et `fail` exigent une signature HMAC du body ;
@@ -83,7 +83,7 @@ Le backend :
 ## Releases
 
 Le backend expose maintenant un catalogue de releases desktop / RSS / embedding.
-Le crate partage `manifeed-worker-common` utilise `GET /workers/releases/manifest`
+Le crate partage `manifeed-worker-common` utilise `GET /workers/api/releases/manifest`
 pour resoudre l'artefact compatible avec le host courant et verifier la compatibilite
 de version.
 
@@ -93,7 +93,7 @@ Points cle :
 - RSS et Embedding se mettent a jour independamment avec leurs propres versions de bundle ;
 - `embedding` transporte aussi un `worker_version` metier distinct du `package.version` ;
 - le telechargement desktop est public ;
-- les bundles RSS / Embedding sont telecharges depuis `GET /workers/releases/download/{artifact_name}`
+- les bundles RSS / Embedding sont telecharges depuis `GET /workers/api/releases/download/{artifact_name}`
   avec Bearer worker ;
 - le backend derive la version worker active du catalogue au lieu d'une variable frontend ou d'un
   hardcode partage.

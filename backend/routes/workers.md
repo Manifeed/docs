@@ -1,10 +1,10 @@
 # Routes Workers
 
-## POST /workers/sessions/open
+## POST /workers/api/sessions/open
 
 ```mermaid
 flowchart LR
-    worker["Worker RSS/Embedding"] --> route["POST /workers/sessions/open"]
+    worker["Worker RSS/Embedding"] --> route["POST /workers/api/sessions/open"]
     route --> auth["Verifier Bearer + owner"]
     auth --> compat{"task_type compatible ?"}
     compat -->|oui| session[(worker_sessions)]
@@ -32,11 +32,11 @@ flowchart LR
   - lecture `user_api_keys`, `users` ;
   - ecriture `worker_sessions`.
 
-## POST /workers/tasks/claim
+## POST /workers/api/tasks/claim
 
 ```mermaid
 flowchart LR
-    worker["Worker RSS/Embedding"] --> route["POST /workers/tasks/claim"]
+    worker["Worker RSS/Embedding"] --> route["POST /workers/api/tasks/claim"]
     route --> session["Verifier session ouverte"]
     session --> tasks["Selectionner worker_tasks eligibles"]
     tasks --> leases[(worker_leases)]
@@ -64,11 +64,11 @@ flowchart LR
   - lecture / mise a jour `worker_tasks` avec `FOR UPDATE SKIP LOCKED` ;
   - ecriture `worker_leases`.
 
-## POST /workers/tasks/complete
+## POST /workers/api/tasks/complete
 
 ```mermaid
 flowchart LR
-    worker["Worker RSS/Embedding"] --> route["POST /workers/tasks/complete"]
+    worker["Worker RSS/Embedding"] --> route["POST /workers/api/tasks/complete"]
     route --> verify["Verifier session, lease et HMAC"]
     verify --> branch{"task_type"}
     branch -->|rss.fetch| rss["Promouvoir resultats RSS"]
@@ -124,11 +124,11 @@ flowchart LR
   - pour RSS, le backend exige un resultat pour chaque `feed_id` present dans le payload
     de task.
 
-## POST /workers/tasks/fail
+## POST /workers/api/tasks/fail
 
 ```mermaid
 flowchart LR
-    worker["Worker RSS/Embedding"] --> route["POST /workers/tasks/fail"]
+    worker["Worker RSS/Embedding"] --> route["POST /workers/api/tasks/fail"]
     route --> verify["Verifier session, lease et HMAC"]
     verify --> fail["Marquer worker_tasks.failed"]
     fail --> refresh["Rafraichir worker_jobs + finaliser lease"]
@@ -162,11 +162,11 @@ flowchart LR
   - refresh `worker_jobs` ;
   - finalisation `worker_leases`.
 
-## GET /workers/ping
+## GET /workers/api/ping
 
 ```mermaid
 flowchart LR
-    worker["Worker common"] --> route["GET /workers/ping"]
+    worker["Worker common"] --> route["GET /workers/api/ping"]
     route --> auth["Verifier Bearer + owner"]
     auth --> response[["200 WorkerPingRead"]]
     auth -. invalide .-> e401[["401/403 Reject request"]]
@@ -182,11 +182,11 @@ flowchart LR
   - `401` Bearer manquant/invalide.
   - `403` owner inactif ou acces API coupe.
 
-## GET /workers/releases/manifest
+## GET /workers/api/releases/manifest
 
 ```mermaid
 flowchart LR
-    worker["Worker common"] --> route["GET /workers/releases/manifest"]
+    worker["Worker common"] --> route["GET /workers/api/releases/manifest"]
     route --> config["Charger catalogue depuis env ou fichier"]
     config --> match["Filtrer product, platform, arch"]
     match --> response[["200 WorkerReleaseManifestRead"]]
@@ -208,11 +208,11 @@ flowchart LR
   - aucun acces DB ;
   - lecture configuration via `WORKER_RELEASE_CATALOG_JSON` ou `WORKER_RELEASE_CATALOG_PATH`.
 
-## GET /workers/releases/desktop
+## GET /workers/api/releases/desktop
 
 ```mermaid
 flowchart LR
-    web["Frontend workspace"] --> route["GET /workers/releases/desktop"]
+    web["Frontend workspace"] --> route["GET /workers/api/releases/desktop"]
     route --> config["Charger catalogue"]
     config --> filter["Garder uniquement family=desktop"]
     filter --> response[["200 WorkerDesktopReleaseListRead"]]
@@ -228,11 +228,11 @@ flowchart LR
   - le backend fournit deja les labels UI desktop ;
   - le frontend ne recompose plus `product/platform/arch`.
 
-## GET /workers/releases/download/{artifact_name}
+## GET /workers/api/releases/download/{artifact_name}
 
 ```mermaid
 flowchart LR
-    actor["Desktop app / navigateur / worker"] --> route["GET /workers/releases/download/{artifact_name}"]
+    actor["Desktop app / navigateur / worker"] --> route["GET /workers/api/releases/download/{artifact_name}"]
     route --> catalog["Lookup artifact_name dans le catalogue"]
     catalog --> auth{"download_auth"}
     auth -->|public| file["Servir le fichier"]
