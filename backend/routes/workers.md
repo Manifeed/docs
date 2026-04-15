@@ -13,8 +13,7 @@ flowchart LR
 ```
 
 - Consommateurs :
-  - `workers/worker-rss/src/api.rs`
-  - `workers/worker-source-embedding/src/api.rs`
+  - `workers/manifeed-worker-common/src/gateway.rs`
 - Securite : `Worker bearer`.
 - Inputs :
   - Body `WorkerSessionOpenRequestSchema` :
@@ -45,8 +44,7 @@ flowchart LR
 ```
 
 - Consommateurs :
-  - `workers/worker-rss/src/api.rs`
-  - `workers/worker-source-embedding/src/api.rs`
+  - `workers/manifeed-worker-common/src/gateway.rs`
 - Securite : `Worker bearer`.
 - Inputs :
   - Body `WorkerTaskClaimRequestSchema` :
@@ -62,7 +60,11 @@ flowchart LR
   - `400` mismatch protocolaire (`task_type`, `worker_version`, payload_ref).
 - Tables / systemes :
   - lecture / mise a jour `worker_tasks` avec `FOR UPDATE SKIP LOCKED` ;
+  - mise a jour `worker_tasks.execution_id`, `claimed_at`, `claim_expires_at`, `attempt_count` ;
   - ecriture `worker_leases`.
+- Notes importantes :
+  - `execution_id` est attribue a chaque claim et n'est plus un alias de `task_id` ;
+  - `payload_ref` encode `task_type`, `task_id` et `execution_id`.
 
 ## POST /workers/api/tasks/complete
 
@@ -70,18 +72,18 @@ flowchart LR
 flowchart LR
     worker["Worker RSS/Embedding"] --> route["POST /workers/api/tasks/complete"]
     route --> verify["Verifier session, lease et HMAC"]
-    verify --> branch{"task_type"}
-    branch -->|rss.fetch| rss["Promouvoir resultats RSS"]
+    verify --> reserve["Reserver result_status sur worker_leases"]
+    reserve --> branch{"task_type"}
+    branch -->|rss.fetch| rss["Fusion canonique RSS"]
     branch -->|embed.source| emb["Indexer embeddings"]
-    rss --> finalize["Finaliser lease, task, job"]
+    rss --> finalize["Finaliser task et job"]
     emb --> finalize
     finalize --> response[["200 WorkerTaskCommandRead"]]
     verify -. invalide/expire .-> e4xx[["4xx Reject request"]]
 ```
 
 - Consommateurs :
-  - `workers/worker-rss/src/api.rs`
-  - `workers/worker-source-embedding/src/api.rs`
+  - `workers/manifeed-worker-common/src/gateway.rs`
 - Securite : `Worker bearer + HMAC`.
 - Inputs :
   - Body commun `WorkerTaskCompleteRequestSchema` :
@@ -102,10 +104,11 @@ flowchart LR
     - `sources[]` avec `id`, `embedding[]`.
 - Output :
   - `200` `WorkerTaskCommandRead { ok: true }`.
+  - un retry identique sur une lease deja finalisee repond aussi `200 { ok: true }` sans rejouer la logique metier.
 - Erreurs :
   - `403` signature HMAC invalide.
   - `404` session ou lease absente.
-  - `409` lease deja finalisee ou expiree.
+  - `409` lease deja finalisee avec un payload different, lease expiree, ou execution stale.
   - `400` payload incompatible avec le contrat attendu.
 - Tables / systemes :
   - toujours : `worker_leases`, `worker_tasks`, `worker_jobs`.
@@ -114,15 +117,15 @@ flowchart LR
     - `authors` ;
     - `article_authors` ;
     - `article_feed_links` ;
-    - `rss_feed_runtime` ;
+    - `rss_feed_runtime`.
   - branche embedding :
     - `embedding_manifest` ;
     - Qdrant.
 - Notes importantes :
-  - pour les embeddings, le backend reparse le body brut JSON pour conserver une
-    canonicalisation numerique compatible signature ;
-  - pour RSS, le backend exige un resultat pour chaque `feed_id` present dans le payload
-    de task.
+  - le backend reserve `worker_leases.result_status`, `result_nonce` et `result_signature_hash` avant tout effet metier ;
+  - pour les embeddings, le backend reparse le body brut JSON pour conserver une canonicalisation numerique compatible signature ;
+  - pour RSS, le backend exige un resultat pour chaque `feed_id` present dans le payload de task ;
+  - les updates `worker_tasks` sont conditionnels sur le `execution_id` actif.
 
 ## POST /workers/api/tasks/fail
 
@@ -130,15 +133,15 @@ flowchart LR
 flowchart LR
     worker["Worker RSS/Embedding"] --> route["POST /workers/api/tasks/fail"]
     route --> verify["Verifier session, lease et HMAC"]
-    verify --> fail["Marquer worker_tasks.failed"]
-    fail --> refresh["Rafraichir worker_jobs + finaliser lease"]
+    verify --> reserve["Reserver result_status sur worker_leases"]
+    reserve --> fail["Marquer worker_tasks.failed"]
+    fail --> refresh["Rafraichir worker_jobs"]
     refresh --> response[["200 WorkerTaskCommandRead"]]
     verify -. invalide/expire .-> e4xx[["4xx Reject request"]]
 ```
 
 - Consommateurs :
-  - `workers/worker-rss/src/api.rs`
-  - `workers/worker-source-embedding/src/api.rs`
+  - `workers/manifeed-worker-common/src/gateway.rs`
 - Securite : `Worker bearer + HMAC`.
 - Inputs :
   - Body `WorkerTaskFailRequestSchema` :
@@ -153,10 +156,11 @@ flowchart LR
     - `error_message`
 - Output :
   - `200` `WorkerTaskCommandRead { ok: true }`.
+  - un retry identique sur une lease deja finalisee repond aussi `200 { ok: true }`.
 - Erreurs :
   - `403` signature invalide.
   - `404` session ou lease absente.
-  - `409` lease deja finalisee ou expiree.
+  - `409` lease deja finalisee avec un payload different, lease expiree, ou execution stale.
 - Tables / systemes :
   - mise a jour `worker_tasks` ;
   - refresh `worker_jobs` ;

@@ -2,14 +2,19 @@
 
 ## Role
 
-PostgreSQL porte le stockage relationnel de Manifeed : catalogue RSS, auth, control plane worker, queue de jobs, stockage canonique des articles, buffers de pipeline et audit.
+PostgreSQL porte le stockage relationnel de Manifeed : catalogue RSS, auth, control plane worker, queue de jobs, stockage canonique des articles et etat de reference des embeddings.
 
 Les vecteurs finaux sont indexes dans Qdrant, mais leur etat de reference reste suivi dans PostgreSQL via `embedding_manifest`.
 
 ## Migrations
 
 Les migrations vivent dans `infra/postgres_migration/alembic/`.
-La reference courante est une baseline unique : `1_0_baseline`.
+La chaine courante est :
+
+- `1_0_baseline`
+- `1_1_article_content_key`
+- `1_2_unique_article_content_key`
+- `1_3_worker_execution_guards`
 
 Flux normal en developpement :
 
@@ -17,7 +22,15 @@ Flux normal en developpement :
 2. `alembic upgrade head`
 3. lancement du backend
 
-Le projet ne maintient plus de migration progressive vers une architecture `v2`.
+Points cle de la chaine actuelle :
+
+- `1_1` ajoute `articles.content_key`
+- `1_2` impose l'unicite partielle sur `articles.content_key`
+- `1_3` ajoute les garde-fous worker :
+  - `worker_tasks.execution_id`
+  - sequence `worker_task_execution_id_seq`
+  - `worker_leases.result_status`
+  - `worker_leases.result_signature_hash`
 
 ## Exploitation locale
 
@@ -29,7 +42,7 @@ make db-reset
 make logs SERVICE=postgres
 ```
 
-`make db-reset` est destructif : il recree un schema vierge puis reapplique la baseline.
+`make db-reset` est destructif : il recree un schema vierge puis reapplique toute la chaine Alembic jusqu'a `head`.
 
 ## Configuration standard
 
@@ -43,5 +56,5 @@ make logs SERVICE=postgres
 
 - ne pas exposer PostgreSQL publiquement
 - changer les credentials hors developpement
-- surveiller la croissance des tables `worker_*`, `staging_*`, `ingest_events` et `dedup_decisions`
-- considerer les buffers `staging_*` comme des traces de pipeline, pas comme des tables de lecture produit
+- surveiller la croissance des tables `worker_*`, `articles`, `article_feed_links` et `embedding_manifest`
+- appliquer `alembic upgrade head` avant de lancer des workers, car le protocole courant depend de `worker_tasks.execution_id` et de la finalisation idempotente des `worker_leases`
